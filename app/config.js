@@ -70,7 +70,7 @@ export default {
   },
 
   sequencing: {
-  mode: 'linear',                           // standaard: alles zoals vroeger
+  mode: 'interleaved',                           // standaard: alles zoals vroeger
   byStudy: { spiral2026: 'interleaved' },    // vervang door je echte studiecode
   tailFamilies: [],                         // eventueel ['mathematics']
 },
