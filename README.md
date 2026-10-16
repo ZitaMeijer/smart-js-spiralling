@@ -15,7 +15,8 @@ admin.html            researcher page: participants, CSV export, bulk accounts
 app/
   config.js           training parameters (criteria, timers, backend, debug overrides)
   main.js             session flow: login -> intro -> levels -> ending
-  engine/             pure logic, unit-tested (csv, stimuli, trials, level state machine, content)
+  engine/             pure logic, unit-tested (csv, stimuli, trials, level state machine, level order, content)
+    sequence.js       level order: linear or interleaved over the families
   ui/                 screens, header (dragon, stones, timers), audio
   data/               backends: local (browser only), rest (server), upload queue
   i18n/nl.js, en.js   all text, per language
@@ -30,7 +31,7 @@ server/
   API.md              the JSON API the app talks to
   cloudflare/         reference server: Cloudflare Worker + D1 (free tier)
 tools/                content import/translation scripts
-tests/                node --test
+tests/                node --test (sequence.test.js covers the level order)
 legacy/               the old lab.js material and the last lab.js export
 ```
 
@@ -50,6 +51,7 @@ Useful URLs while developing (see `app/config.js` for the full list):
 | `?debug` | short levels (2 stones, 2 test trials), 5-minute session, debug bar with *auto-answer* and CSV download |
 | `?debug&stage=104` | preview a specific level |
 | `?debug&sessionSec=90` | shorter session |
+| `?debug&order=interleaved` | force the level order (`linear` or `interleaved`) in this browser |
 | `?backend=local` | ignore the configured server and keep everything in this browser |
 | `?api=https://...` | point at a different API server |
 
@@ -150,7 +152,48 @@ on the server (`STUDY_CODE`, e.g. `draak2026=SMART RCT,pilot27=Pilot`), and
 each study gets its own link, `https://<site>/?study=CODE`, which hides the
 code field and tags every account registered through it. Exports can be
 filtered per study; `admin.html` lists the studies with participant counts and
-links. See `server/cloudflare/README.md`.
+links. See `server/cloudflare/README.md`. The study also decides the level
+order, see below.
+
+## Level order
+
+A stage number identifies its **content** (trial file, dragon, background,
+criteria) and never changes. The **order** in which a child meets the stages
+is chosen per study:
+
+| mode | order |
+| --- | --- |
+| `linear` (default) | 5, 6, 7, ... 122: one family after the other, as in the original programme |
+| `interleaved` | round-robin over the families: 5, 30, 56, 82, 104, 6, 31, 57, ... (first stage of every family, then the second of every family, and so on; shorter families drop out once exhausted) |
+
+Whatever the order, the child sees the programme's original sequence:
+dragons (with their facts), backgrounds, the collection screens and the level
+number on screen count 1, 2, 3, ... without jumping. Only the trial content
+follows the chosen order, so in interleaved mode level 2 uses the first trials
+of the second family but shows the second dragon and background.
+
+```js
+// app/config.js
+sequencing: {
+  mode: 'linear',                         // default for every account
+  byStudy: { draak2026: 'interleaved' },  // study code -> order (optional)
+  tailFamilies: [],                       // interleaved only: families played as a block after
+},                                        // the round-robin, e.g. ['mathematics']
+```
+
+The order follows the account's study tag; accounts without a study, or with
+one that is not listed in `byStudy`, use `mode`. Leave out `sequencing` and
+everything stays linear. Do not set `mode: 'interleaved'` while other studies
+share the server, and do not switch a study that already has children midway:
+their next stage would change.
+
+Progress on the server is still the stage id to play next (highest id + 1 once
+finished), so the server, `admin.html` and existing exports work for both
+orders. *Move to another stage* takes a stage id; for an interleaved study,
+`buildSequence(stages, { mode: 'interleaved' }).ids` in `app/engine/sequence.js`
+lists the stage ids by position. Every trial record also carries `position`
+(1-based place in the child's sequence) and `sequencing`; they are stored in
+`payload`, while `stage` stays the content id.
 
 ## Accounts and progress
 
@@ -209,8 +252,9 @@ dictionary and an `app/i18n/<code>.js` to add a language.
 
 - `content/dragons.csv`: `stage,name,image,fact_nl,fact_en`. Stages 104-122
   currently use `static/placeholder-dragon.svg`; drop in images and edit the rows.
-- `content/stages.csv`: family (used to group the collection screens),
-  background image, optional criteria overrides. Add rows to add stages.
+- `content/stages.csv`: family (used to group the collection screens and the
+  interleaved order), background image, optional criteria overrides. Add rows
+  to add stages.
 - `content/syllables.csv`: four columns, one bucket per stimulus slot.
 
 `npm test` checks that every stage has a dragon and a background and that every
