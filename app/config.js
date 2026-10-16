@@ -71,7 +71,7 @@ export default {
 
   sequencing: {
   mode: 'linear',                           // standaard: alles zoals vroeger
-  // byStudy: { draak2026: 'interleaved' },    // vervang door je echte studiecode
+  byStudy: { spiral2026: 'interleaved' },    // vervang door je echte studiecode
   tailFamilies: [],                         // eventueel ['mathematics']
 },
 
