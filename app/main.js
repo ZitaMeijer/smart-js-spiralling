@@ -3,6 +3,7 @@ import { createContent, indexStages, indexDragons, levelOptions } from './engine
 import { StimulusPool, bucketsFromRows } from './engine/stimuli.js';
 import { TrialSampler, resolveTrial } from './engine/trials.js';
 import { LevelRunner } from './engine/level.js';
+import { buildSequence, pickSequencing } from './engine/sequence.js';
 import { createBackend } from './data/index.js';
 import { createTrialQueue } from './data/queue.js';
 import { uuid, storage } from './data/storage.js';
@@ -44,12 +45,15 @@ async function boot() {
   let user = await backend.restore();
   if (!user) user = await screens.loginScreen({ strings, backend, language: lang, studyCodeRequired: backend.requiresStudyCode });
   ctx.user = user;
-  let stage0 = Math.min(Math.max(Number(user.stage) || stages.first, stages.first), stages.last + 1);
-  if (DEBUG && params.get('stage')) stage0 = Math.min(Math.max(Number(params.get('stage')), stages.first), stages.last); // preview a level
+  // level order for this child (linear or interleaved); progress stays "the stage id to play next"
+  const route = buildSequence(stages, pickSequencing(config, { studyCode: studyOf(user, config), forced: DEBUG ? params.get('order') : null }));
+  ctx.route = route;
+  let stage0 = route.normalize(user.stage);
+  if (DEBUG && params.get('stage')) { const s = Number(params.get('stage')); stage0 = route.has(s) ? s : route.first; } // preview a level
 
   // --- narrative intro -------------------------------------------------------
-  const firstDragon = dragons.get(stages.first);
-  const currentDragon = dragons.get(Math.min(stage0, stages.last));
+  const firstDragon = dragons.get(route.look(route.first));
+  const currentDragon = dragons.get(route.look(stage0));
   if (user.isNew) {
     const p = { dragon: firstDragon.name, fact: firstDragon.fact, criterion: config.training.criterion, testTrials: config.testing.trials };
     for (let i = 0; i < strings.intro.length; i++) {
@@ -67,12 +71,17 @@ async function boot() {
   header.hide();
   $('#session-footer').hidden = true;
   await backend.logout(); // next child on this computer gets the login screen
-  if (result.stage > stages.last) await screens.completed({ strings });
-  await screens.ending({ strings, current: dragons.get(Math.min(result.stage, stages.last)) });
+  if (route.isDone(result.stage)) await screens.completed({ strings });
+  await screens.ending({ strings, current: dragons.get(route.look(result.stage)) });
+}
+
+/** The study an account belongs to; it decides the level order. Adjust the property to what the backend returns for a user. */
+function studyOf(user, config) {
+  return user.study ?? user.studyCode ?? config.backend.studyCode ?? null;
 }
 
 async function runSession(ctx, startStage) {
-  const { config, strings, lang, content, stages, dragons, backend, header } = ctx;
+  const { config, strings, lang, content, stages, dragons, backend, header, route } = ctx;
   const sessionId = uuid();
   const session = {
     id: sessionId, stage: startStage, language: lang, startedAt: new Date().toISOString(),
@@ -98,21 +107,22 @@ async function runSession(ctx, startStage) {
   let trialsCompleted = 0;
   let seq = 0;
 
-  // dragon collection for the current family of stages
-  if (stage <= stages.last) {
-    const family = stages.get(stage).family;
+  // dragon collection for the current family of stages (dragons, backgrounds and families follow the programme's own order, whatever the level order)
+  if (!route.isDone(stage)) {
+    const shown = route.look(stage);
+    const family = stages.get(shown).family;
     const part = stages.families.indexOf(family) + 1;
     const familyStages = new Set(stages.list.filter((s) => s.family === family).map((s) => s.stage));
     header.hideHeaderOnly();
-    await screens.collection({ strings, dragons: dragons.list.filter((d) => familyStages.has(d.stage)), stage, part });
+    await screens.collection({ strings, dragons: dragons.list.filter((d) => familyStages.has(d.stage)), stage: shown, part });
   }
 
-  while (!clock.expired && stage <= stages.last) {
+  while (!clock.expired && !route.isDone(stage)) {
     const passed = await runLevel(ctx, { stage, pool, clock, record: (r) => { seq++; trialsCompleted++; queue.push({ ...r, sessionId, seq, userId: ctx.user.id, username: ctx.user.username }); } });
     if (passed) {
-      stage++;
+      stage = route.next(stage);
       levelsPassed++;
-      saveProgressReliably(ctx, { stage, extra: { lastDragon: dragons.get(Math.min(stage, stages.last)).name } });
+      saveProgressReliably(ctx, { stage, extra: { lastDragon: dragons.get(route.look(stage)).name } });
     }
   }
 
@@ -121,30 +131,31 @@ async function runSession(ctx, startStage) {
   await queue.flush();
   await flushPendingProgress(ctx);
   queue.stop();
-  const summary = { endedAt: new Date().toISOString(), stageEnd: stage, levelsPassed, trialsCompleted, endReason: stage > stages.last ? 'completed' : 'time' };
+  const summary = { endedAt: new Date().toISOString(), stageEnd: stage, levelsPassed, trialsCompleted, endReason: route.isDone(stage) ? 'completed' : 'time' };
   try { await backend.endSession(sessionId, summary); } catch (e) { console.warn('endSession failed', e); }
   return { stage, levelsPassed };
 }
 
 /** Run one level (training then testing). Resolves true when passed, false when the session clock ran out. */
 async function runLevel(ctx, { stage, pool, clock, record }) {
-  const { config, strings, lang, content, stages, dragons, header } = ctx;
+  const { config, strings, lang, content, stages, dragons, header, route } = ctx;
   const stageRow = stages.get(stage);
   const rows = await content.trials(lang, stage);
-  if (stage < stages.last) content.prefetchTrials(lang, stage + 1);
+  const nextStage = route.next(stage);
+  if (!route.isDone(nextStage)) content.prefetchTrials(lang, nextStage);
   const sampler = new TrialSampler(rows);
   const opts = levelOptions(config, stageRow);
   const level = new LevelRunner(opts);
-  const current = dragons.get(stage);
-  const next = dragons.get(stage + 1) || current;
+  const current = dragons.get(route.look(stage)); // dragon and background follow the programme's own order, not the content's stage id
+  const next = dragons.get(route.displayStage(nextStage)) || current;
   ctx.level = level;
   ctx.stage = stage;
 
-  header.setBackground(stageRow.background);
+  header.setBackground(stages.get(route.look(stage)).background);
   header.setDragons(current.image, next.image);
 
-  const showTrainingHeader = () => { header.show(); header.setLevel(stage, 'training'); header.setTraining(level.tally, opts.criterion); };
-  const showTestingHeader = () => { header.show(); header.setLevel(stage, 'testing'); header.setTesting(level.testTrialNumber, opts.testTrials); };
+  const showTrainingHeader = () => { header.show(); header.setLevel(route.displayStage(stage), 'training'); header.setTraining(level.tally, opts.criterion); };
+  const showTestingHeader = () => { header.show(); header.setLevel(route.displayStage(stage), 'testing'); header.setTesting(level.testTrialNumber, opts.testTrials); };
 
   while (!clock.expired) {
     const phase = level.phase;
@@ -165,7 +176,7 @@ async function runLevel(ctx, { stage, pool, clock, record }) {
     const correct = !r.timedOut && r.response === t.correctResponse;
     const event = level.record({ correct, usedHint: r.usedHint, timedOut: r.timedOut });
     record({
-      stage, phase, trialType: t.kind, trialInLevel: level.trialsInLevel, testTrial: phase === 'testing' ? level.testTrial : null,
+      stage, position: route.position(stage), sequencing: route.mode, phase, trialType: t.kind, trialInLevel: level.trialsInLevel, testTrial: phase === 'testing' ? level.testTrial : null,
       stimuli: t.stimuli, row, question: `${t.question.word} ${t.question.left} ${t.question.rel} ${t.question.right}?`,
       correctResponse: t.correctResponse, response: r.response, correct: correct ? 1 : 0, rtMs: r.rtMs,
       usedHint: r.usedHint ? 1 : 0, timedOut: r.timedOut ? 1 : 0, tallyAfter: level.tally, levelEvent: event, positions: r.positions,
@@ -243,7 +254,7 @@ function setupDebugPanel(ctx) {
     const l = ctx.level;
     panel.innerHTML = `
       <b>debug</b> · backend: ${ctx.backend.type} · lang: ${ctx.lang}
-      · stage: ${ctx.stage ?? '-'} · phase: ${l?.phase ?? '-'} · tally: ${l?.tally ?? '-'} · test: ${l?.testTrial ?? '-'}
+      · stage: ${ctx.stage ?? '-'} (level ${ctx.route && ctx.stage ? ctx.route.position(ctx.stage) : '-'}, ${ctx.route?.mode ?? '-'}) · phase: ${l?.phase ?? '-'} · tally: ${l?.tally ?? '-'} · test: ${l?.testTrial ?? '-'}
       · uploads pending: ${ctx.queue?.pending ?? 0} · time left: ${ctx.clock ? Math.round(ctx.clock.remainingMs / 1000) + 's' : '-'}
       <label><input type="checkbox" id="dbg-auto" ${ctx.autoAnswer ? 'checked' : ''}> auto-answer correctly</label>
       ${ctx.backend.exportCsv ? '<button id="dbg-export">download trial csv</button>' : ''}

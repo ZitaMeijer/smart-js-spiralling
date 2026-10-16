@@ -67,6 +67,12 @@ export default {
     flushIntervalMs: 15000,
   },
 
+  sequencing: {
+  mode: 'linear',                           // standaard: alles zoals vroeger
+  // byStudy: { draak2026: 'interleaved' },    // vervang door je echte studiecode
+  tailFamilies: [],                         // eventueel ['mathematics']
+},
+
   // Overrides applied when the page is opened with ?debug
   debug: {
     training: { criterion: 2 },
