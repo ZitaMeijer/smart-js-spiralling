@@ -16,6 +16,8 @@ export default {
   language: 'nl',
   languages: ['nl', 'en'],
 
+  studyCode: 'spiral2026',
+
   // Where accounts, progress and trial data are stored.
   //   type: 'local'  - this browser only (localStorage). Good for demos/testing.
   //   type: 'rest'   - a server implementing server/API.md (see server/cloudflare).
