@@ -24,7 +24,7 @@ export default {
   backend: {
     type: 'rest',
     url: 'https://smart-api.zita-meijer.workers.dev',
-    studyCode: '',     // study code sent at registration; usually left empty and supplied per study via ?study=CODE in the link
+    studyCode: 'spiral2026',     // study code sent at registration; usually left empty and supplied per study via ?study=CODE in the link
   },
 
   session: {
