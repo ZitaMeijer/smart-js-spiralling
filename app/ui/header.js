@@ -58,8 +58,8 @@ export function createHeader({ strings, config }) {
       $('#target-character').src = nextImage || '';
     },
 
-    /** Training view: dragon stones for the current tally. */
-    setTraining(tally, criterion) {
+    /** Training view: one stone per slot of the current run ('ok' = coloured, 'miss' = grey, undefined = not reached yet). */
+    setTraining(slots, criterion) {
       $('#test-track').hidden = true;
       $('.bubble', header).hidden = false;
       const box = $('#stone-container');
@@ -76,9 +76,11 @@ export function createHeader({ strings, config }) {
         }
       }
       [...box.children].forEach((el, i) => {
-        const on = i < tally;
-        if (on && !el.classList.contains('visible')) el.classList.add('pop');
-        el.classList.toggle('visible', on);
+        const ok = slots[i] === 'ok';
+        if (ok && !el.classList.contains('visible')) el.classList.add('pop');
+        if (!ok) el.classList.remove('pop'); // laat de pop-animatie opnieuw afspelen na een reset
+        el.classList.toggle('visible', ok);
+        el.classList.toggle('miss', slots[i] === 'miss');
       });
     },
 

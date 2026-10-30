@@ -55,6 +55,8 @@ export function levelOptions(config, stageRow) {
     testTrials: n(stageRow?.testing_trials) ?? config.testing.trials,
     resetOnError: config.training.resetOnError,
     hintForfeitsPoint: config.training.hintForfeitsStone,
-    abortOnFirstError: b(stageRow?.abort_on_first_error) ?? config.testing.abortOnFirstError,
+    maxTrainingErrors: n(stageRow?.training_max_errors) ?? config.training.maxErrors,
+    maxTestErrors: n(stageRow?.testing_max_errors) ?? config.testing.maxErrors,
+    abortWhenFailed: b(stageRow?.abort_when_failed) ?? config.testing.abortWhenFailed,
   };
 }

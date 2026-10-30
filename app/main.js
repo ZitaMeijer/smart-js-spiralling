@@ -154,7 +154,7 @@ async function runLevel(ctx, { stage, pool, clock, record }) {
   header.setBackground(stages.get(route.look(stage)).background);
   header.setDragons(current.image, next.image);
 
-  const showTrainingHeader = () => { header.show(); header.setLevel(route.displayStage(stage), 'training'); header.setTraining(level.tally, opts.criterion); };
+  const showTrainingHeader = () => { header.show(); header.setLevel(route.displayStage(stage), 'training'); header.setTraining(level.slots, opts.criterion); };
   const showTestingHeader = () => { header.show(); header.setLevel(route.displayStage(stage), 'testing'); header.setTesting(level.testTrialNumber, opts.testTrials); };
 
   while (!clock.expired) {
@@ -181,15 +181,16 @@ async function runLevel(ctx, { stage, pool, clock, record }) {
       correctResponse: t.correctResponse, response: r.response, correct: correct ? 1 : 0, rtMs: r.rtMs,
       usedHint: r.usedHint ? 1 : 0, timedOut: r.timedOut ? 1 : 0, tallyAfter: level.tally, levelEvent: event, positions: r.positions,
       shownAt, clientTime: new Date().toISOString(), criterion: opts.criterion, testTrials: opts.testTrials,
+      maxErrors: phase === 'training' ? opts.maxTrainingErrors : opts.maxTestErrors,
     });
     pool.next();
 
     if (phase === 'training') {
       if (correct) {
         if (r.usedHint && config.training.hintForfeitsStone) await screens.flash({ kind: 'correct', text: strings.feedback.correct, note: strings.feedback.correctHint, ms: config.feedback.correctHintMs });
-        else { header.setTraining(level.tally, opts.criterion); await screens.flash({ kind: 'correct', text: strings.feedback.correct, ms: config.feedback.correctMs }); }
+        else { header.setTraining(level.slots, opts.criterion); await screens.flash({ kind: 'correct', text: strings.feedback.correct, ms: config.feedback.correctMs }); }
       } else {
-        header.setTraining(level.tally, opts.criterion);
+        header.setTraining(level.slots, opts.criterion);
         await screens.flash({ kind: 'incorrect', text: strings.feedback.incorrect, ms: config.feedback.incorrectMs });
         if (config.feedback.showCorrective) await screens.corrective({ trial: t, strings, header });
       }

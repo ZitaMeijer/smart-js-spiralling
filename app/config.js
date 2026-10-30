@@ -40,6 +40,7 @@ export default {
 
   training: {
     criterion: 16,            // consecutive correct (no hint) answers needed to reach the test
+    maxErrors: 1,             // number of errors allowed
     resetOnError: true,       // an error empties the dragon stones
     hintForfeitsStone: true,  // correct answer with a hint gives no stone
     hintEnabled: true,        // show the hint button in training when the trial has hint content
@@ -47,7 +48,8 @@ export default {
 
   testing: {
     trials: 16,               // number of test trials; all must be correct
-    abortOnFirstError: false, // true: stop the test at the first error instead of finishing all trials
+    maxErrors: 1,             // number of errors allowed
+    abortWhenFailed: true,    // true: stop when errors > maxErrors; false: finish all trials regardless of errors
   },
 
   feedback: {
