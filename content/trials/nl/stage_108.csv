@@ -1,5 +1,5 @@
-relation_1,meta_relation_1,relation_2,meta_stim_1_id,meta_relation_2,meta_stim_2_id,q_stim_1_id,q_rel,q_stim_2_id,correct_response,stage,yes_x_coord,no_x_coord,q_word
-plus,is hetzelfde als,plus,1,is minder dan,3,2,minder dan,4,no,108,-250,250,Is
-plus,is hetzelfde als,plus,2,is minder dan,4,1,minder dan,3,no,108,-250,250,Is
-plus,is minder dan,plus,1,is hetzelfde als,3,2,minder dan,4,yes,108,-250,250,Is
-plus,is minder dan,plus,2,is hetzelfde als,4,1,minder dan,3,yes,108,-250,250,Is
+relation_1,meta_relation_1,relation_2,meta_stim_1_id,meta_relation_2,meta_stim_2_id,q_stim_1_id,q_rel,q_stim_2_id,correct_response,stage,yes_x_coord,no_x_coord,NAARR_1,NAARR_2,NAARR_3,NAARR_4,q_word
+plus,is hetzelfde als,plus,1,is minder dan,3,2,minder dan,4,no,108,-250,250,static/apple-3.png,static/apple-3.png,static/apple-5.png,static/apple-1.png,Is
+plus,is hetzelfde als,plus,2,is minder dan,4,1,minder dan,3,no,108,-250,250,static/apple-3.png,static/apple-1.png,static/apple-1.png,static/apple-3.png,Is
+plus,is minder dan,plus,1,is hetzelfde als,3,2,minder dan,4,yes,108,-250,250,static/apple-1.png,static/apple-2.png,static/apple-1.png,static/apple-4.png,Is
+plus,is minder dan,plus,2,is hetzelfde als,4,1,minder dan,3,yes,108,-250,250,static/apple-1.png,static/apple-2.png,static/apple-2.png,static/apple-2.png,Is

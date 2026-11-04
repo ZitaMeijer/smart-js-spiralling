@@ -66,12 +66,23 @@ export function resolveTrial(row, pool, lang) {
       { text: `${pool.slot(3)} ${row.relation_2} ${pool.slot(4)}` },
       { text: `${stim(row.meta_stim_1_id)} ${row.meta_relation_2} ${stim(row.meta_stim_2_id)}`, relClass: relClass(row.meta_relation_2) },
     ];
+    // NAARR hint: same four lines, with the apple images instead of syllables
+    const hintLines = [
+      { left: hintImg(1), rel: row.relation_1, right: hintImg(2) },
+      { rel: row.meta_relation_1, relClass: relClass(row.meta_relation_1) },
+      { left: hintImg(3), rel: row.relation_2, right: hintImg(4) },
+      { left: hintImg(row.meta_stim_1_id), rel: row.meta_relation_2, right: hintImg(row.meta_stim_2_id), relClass: relClass(row.meta_relation_2) },
+    ];
+    const qHintLeft = hintImg(row.q_stim_1_id);
+    const qHintRight = hintImg(row.q_stim_2_id);
+    const images = [...hintLines.flatMap((l) => [l.left, l.right]), qHintLeft, qHintRight].filter(Boolean);
+
     return {
       kind,
       lines,
-      question: { word: questionWord, left: stim(row.q_stim_1_id), rel: row.q_rel, right: stim(row.q_stim_2_id), relClass: relClass(row.q_rel) },
+      question: { word: questionWord, left: stim(row.q_stim_1_id), rel: row.q_rel, right: stim(row.q_stim_2_id), relClass: relClass(row.q_rel), hintLeft: qHintLeft, hintRight: qHintRight },
       correctResponse: row.correct_response,
-      hint: { images: [], text: hintText, available: Boolean(hintText) },
+      hint: { images, lines: hintLines, text: hintText, available: images.length > 0 || Boolean(hintText) },
       stimuli: [1, 2, 3, 4].map((n) => pool.slot(n)),
     };
   }

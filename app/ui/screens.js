@@ -125,6 +125,12 @@ function trialBodyHtml(trial) {
 function hintBoxHtml(trial) {
   const q = trial.question;
   let rows = '';
+  if (trial.kind === 'math' && trial.hint.images.length) {
+  rows = trial.hint.lines.map((l) => (l.left || l.right)
+    ? `<div class="hint-row">${hintImg(l.left)} ${relSpan(l.rel, l.relClass)} ${hintImg(l.right)}</div>`
+    : `<div class="hint-row">${relSpan(l.rel, l.relClass)}</div>`).join('')
+    + `<div class="hint-row hint-question">${escapeHtml(q.word)} ${hintImg(q.hintLeft)} ${relSpan(q.rel, q.relClass)} ${hintImg(q.hintRight)}?</div>`;
+  }
   if (trial.kind === 'standard' && trial.hint.images.length) {
     rows = trial.propositions.map((p) => `<div class="hint-row">${hintImg(p.hintLeft)} ${relSpan(p.rel, p.relClass)} ${hintImg(p.hintRight)}</div>`).join('')
       + `<div class="hint-row hint-question">${escapeHtml(q.word)} ${hintImg(q.hintLeft)} ${relSpan(q.rel, q.relClass)} ${hintImg(q.hintRight)}?</div>`;
